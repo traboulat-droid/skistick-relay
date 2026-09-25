@@ -1,0 +1,15 @@
+{
+  "name": "skistick-relay",
+  "version": "1.0.0",
+  "description": "SkiStick 实时中转服务器 (WebSocket 房间转发)",
+  "main": "share_server.js",
+  "scripts": {
+    "start": "node share_server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
