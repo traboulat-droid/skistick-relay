@@ -12,8 +12,18 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const { RtcTokenBuilder, RtcRole } = require('agora-token');
 const PORT = process.env.PORT || 8080;
-const AGORA_APP_ID = process.env.AGORA_APP_ID || '';
-const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
+// 去掉粘贴时容易带进来的空格/换行/引号
+const clean = (v) => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+const AGORA_APP_ID = clean(process.env.AGORA_APP_ID);
+const AGORA_APP_CERTIFICATE = clean(process.env.AGORA_APP_CERTIFICATE);
+const isHex32 = (v) => /^[0-9a-fA-F]{32}$/.test(v);
+// 检查配置:agora-token 在 App ID / 证书不是 32 位十六进制时会静默返回空 Token
+function agoraConfigError() {
+  if (!AGORA_APP_ID || !AGORA_APP_CERTIFICATE) return '服务器未配置 AGORA_APP_ID / AGORA_APP_CERTIFICATE';
+  if (!isHex32(AGORA_APP_ID)) return `AGORA_APP_ID 格式不对:应为 32 位十六进制,实际 ${AGORA_APP_ID.length} 位`;
+  if (!isHex32(AGORA_APP_CERTIFICATE)) return `AGORA_APP_CERTIFICATE 格式不对:应为 32 位十六进制,实际 ${AGORA_APP_CERTIFICATE.length} 位`;
+  return null;
+}
 const TOKEN_TTL = 24 * 3600;             // Token 有效期 24 小时(App 会在过期前自动续)
 
 function sendJSON(res, code, obj) {
@@ -25,11 +35,13 @@ function sendJSON(res, code, obj) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/agora-token') {
-    if (!AGORA_APP_ID || !AGORA_APP_CERTIFICATE) return sendJSON(res, 500, { error: '服务器未配置 AGORA_APP_ID / AGORA_APP_CERTIFICATE' });
+    const cfgErr = agoraConfigError();
+    if (cfgErr) return sendJSON(res, 500, { error: cfgErr });
     const channel = String(url.searchParams.get('channel') || '').toUpperCase();
     if (!/^[A-Z0-9_-]{1,64}$/.test(channel)) return sendJSON(res, 400, { error: '频道名无效' });
     // uid 0:Token 对该频道内任意 uid 有效(App 用 uid 0 让 Agora 自动分配)
     const token = RtcTokenBuilder.buildTokenWithUid(AGORA_APP_ID, AGORA_APP_CERTIFICATE, channel, 0, RtcRole.PUBLISHER, TOKEN_TTL, TOKEN_TTL);
+    if (!token) return sendJSON(res, 500, { error: 'Token 生成失败,请检查 Agora 配置' });
     return sendJSON(res, 200, { token, channel, expiresIn: TOKEN_TTL });
   }
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -76,5 +88,6 @@ wss.on('connection', (ws) => {
 
 server.listen(PORT, () => {
   console.log('SkiStick 中转服务器已启动, 端口 ' + PORT);
-  console.log(AGORA_APP_ID && AGORA_APP_CERTIFICATE ? '语音 Token 接口已启用: /agora-token' : '⚠️ 未配置 AGORA_APP_ID / AGORA_APP_CERTIFICATE,语音 Token 接口不可用');
+  const cfgErr = agoraConfigError();
+  console.log(cfgErr ? '⚠️ 语音 Token 接口不可用: ' + cfgErr : '语音 Token 接口已启用: /agora-token');
 });

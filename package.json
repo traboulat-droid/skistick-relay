@@ -1,6 +1,6 @@
 {
   "name": "skistick-relay",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "SkiStick 实时中转服务器 (WebSocket 房间转发 + Agora 语音 Token)",
   "main": "share_server.js",
   "scripts": {
