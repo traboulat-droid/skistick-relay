@@ -1,5 +1,5 @@
 
-Share server · JS
+//Share server · JS
 // SkiStick 实时中转服务器 (WebSocket 房间转发)
 // 本地跑:  npm install && npm start      → ws://本机IP:8080
 // 云端(Render 等)会自动用环境变量 PORT,客户端用 wss://你的域名 (不带端口)
